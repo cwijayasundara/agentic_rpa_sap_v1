@@ -37,7 +37,13 @@ function renderAgent(res) {
   box.innerHTML = "";
   for (const m of res.transcript) {
     const div = document.createElement("div");
-    div.innerHTML = `<div class="author">${m.author}</div>${m.text}`;
+    const authorDiv = document.createElement("div");
+    authorDiv.className = "author";
+    authorDiv.textContent = m.author;
+    const textDiv = document.createElement("div");
+    textDiv.textContent = m.text;
+    div.appendChild(authorDiv);
+    div.appendChild(textDiv);
     box.appendChild(div);
   }
 }
