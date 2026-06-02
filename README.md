@@ -8,7 +8,7 @@ This project proves that a multi-agent system built with Google ADK and `gemini-
 
 ```
                         +------------------+
-                        |     Web UI       |  http://127.0.0.1:8000
+                        |     Web UI       |  http://127.0.0.1:8080
                         | (side-by-side)   |
                         +--------+---------+
                                  |
@@ -94,13 +94,13 @@ The agentic live-run scenarios and the eval are **not** part of `pytest` — the
 
 ## Running the Demo
 
-The demo starts Fake-SAP (port 8001) and the side-by-side web UI (port 8000) with a single command:
+The demo starts Fake-SAP (port 8001) and the side-by-side web UI (port 8080) with a single command. Override ports with `SAP_PORT` / `WEB_PORT` env vars if either is in use:
 
 ```bash
 bash scripts/run_demo.sh
 ```
 
-Then open [http://127.0.0.1:8000](http://127.0.0.1:8000) in a browser. The left pane runs the RPA bot; the right pane runs the ADK agents. The agentic pane requires a valid `GEMINI_API_KEY` in `.env`.
+Then open [http://127.0.0.1:8080](http://127.0.0.1:8080) in a browser. The left pane runs the RPA bot; the right pane runs the ADK agents. The agentic pane requires a valid `GEMINI_API_KEY` in `.env`.
 
 ### Running a single agent scenario in the terminal
 
