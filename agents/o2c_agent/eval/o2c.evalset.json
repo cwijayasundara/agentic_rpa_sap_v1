@@ -1,0 +1,55 @@
+{
+  "eval_set_id": "o2c_scenarios",
+  "name": "O2C RPA-replacement scenarios",
+  "description": "Full order-to-cash chain across happy path and three exception-recovery scenarios.",
+  "eval_cases": [
+    {
+      "eval_id": "happy",
+      "conversation": [
+        {
+          "invocation_id": "happy-1",
+          "user_content": { "parts": [{ "text": "Run the full O2C chain for customer 1000001, material MZ-FG-C100, quantity 10 (sales org 1010, channel 10, division 00)." }] },
+          "final_response": { "role": "model", "parts": [{ "text": "The order-to-cash chain completed: sales order created, outbound delivery created, goods issue posted, and billing document created with a final invoice net amount of 500." }] },
+          "intermediate_data": { "tool_uses": [] }
+        }
+      ],
+      "session_input": { "app_name": "o2c_agent", "user_id": "demo", "state": {} }
+    },
+    {
+      "eval_id": "credit_hold",
+      "conversation": [
+        {
+          "invocation_id": "credit-1",
+          "user_content": { "parts": [{ "text": "Run the full O2C chain for customer 1000002, material MZ-FG-C100, quantity 10 (sales org 1010, channel 10, division 00)." }] },
+          "final_response": { "role": "model", "parts": [{ "text": "The customer was on credit hold so the delivery was blocked; the credit block was released and the chain then completed with a final invoice net amount of 500." }] },
+          "intermediate_data": { "tool_uses": [] }
+        }
+      ],
+      "session_input": { "app_name": "o2c_agent", "user_id": "demo", "state": {} }
+    },
+    {
+      "eval_id": "out_of_stock",
+      "conversation": [
+        {
+          "invocation_id": "stock-1",
+          "user_content": { "parts": [{ "text": "Run the full O2C chain for customer 1000001, material MZ-FG-OOS, quantity 10 (sales org 1010, channel 10, division 00)." }] },
+          "final_response": { "role": "model", "parts": [{ "text": "Stock was insufficient, so a partial delivery was created for the 3 available units with the remaining 7 on backorder, and the chain completed." }] },
+          "intermediate_data": { "tool_uses": [] }
+        }
+      ],
+      "session_input": { "app_name": "o2c_agent", "user_id": "demo", "state": {} }
+    },
+    {
+      "eval_id": "missing_pricing",
+      "conversation": [
+        {
+          "invocation_id": "pricing-1",
+          "user_content": { "parts": [{ "text": "Run the full O2C chain for customer 1000001, material MZ-FG-NP, quantity 10 (sales org 1010, channel 10, division 00)." }] },
+          "final_response": { "role": "model", "parts": [{ "text": "Pricing was incomplete, so a pricing condition of 25 was applied to the item and the chain completed with a final invoice net amount of 250." }] },
+          "intermediate_data": { "tool_uses": [] }
+        }
+      ],
+      "session_input": { "app_name": "o2c_agent", "user_id": "demo", "state": {} }
+    }
+  ]
+}
