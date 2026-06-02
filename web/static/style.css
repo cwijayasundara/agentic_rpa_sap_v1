@@ -1,0 +1,16 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #0f1115; color: #e6e6e6; }
+header { padding: 16px 24px; border-bottom: 1px solid #262a33; }
+h1 { font-size: 18px; margin: 0 0 12px; }
+.controls { display: flex; gap: 12px; align-items: center; }
+select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #333; background: #1a1d24; color: #e6e6e6; }
+button { cursor: pointer; background: #2d6cdf; border-color: #2d6cdf; }
+main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px; }
+.pane { background: #161922; border: 1px solid #262a33; border-radius: 8px; padding: 16px; min-height: 60vh; }
+.pane h2 { margin-top: 0; font-size: 15px; }
+.status { font-weight: 600; margin-bottom: 12px; }
+.status.ok { color: #43c463; } .status.fail { color: #e5544b; } .status.warn { color: #e0a83d; }
+#rpa-steps li { margin: 4px 0; }
+#rpa-steps li.fail { color: #e5544b; } #rpa-steps li.ok { color: #43c463; }
+#agent-transcript div { margin: 8px 0; padding: 8px 10px; background: #1a1d24; border-radius: 6px; white-space: pre-wrap; }
+#agent-transcript .author { font-size: 11px; opacity: .6; text-transform: uppercase; }

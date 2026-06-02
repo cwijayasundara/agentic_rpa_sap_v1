@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RPA vs Multi-Agent — SAP O2C</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>SAP Order-to-Cash: RPA vs Multi-Agent</h1>
+    <div class="controls">
+      <label for="scenario">Scenario</label>
+      <select id="scenario">
+        <option value="happy">Happy path</option>
+        <option value="credit_hold">Customer on credit hold</option>
+        <option value="out_of_stock">Material out of stock</option>
+        <option value="missing_pricing">Missing pricing</option>
+      </select>
+      <button id="run">Run both</button>
+    </div>
+  </header>
+  <main>
+    <section class="pane rpa">
+      <h2>Classic RPA bot</h2>
+      <div id="rpa-status" class="status"></div>
+      <ol id="rpa-steps"></ol>
+    </section>
+    <section class="pane agent">
+      <h2>Multi-agent system</h2>
+      <div id="agent-status" class="status"></div>
+      <div id="agent-transcript"></div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
