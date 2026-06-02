@@ -33,3 +33,25 @@ def test_missing_pricing_completes_but_invoice_is_zero(client):
     res = run_rpa("missing_pricing", client)
     assert res["status"] == "COMPLETED"
     assert res["invoice_total"] == 0.0  # silently wrong — the RPA failure mode
+
+
+def _order_step(res):
+    return next(s for s in res["steps"] if s["step"] == "create_sales_order")
+
+
+def test_credit_hold_order_step_shows_credit_block_cause(client):
+    res = run_rpa("credit_hold", client)
+    detail = _order_step(res)["detail"]
+    assert "4500000000" in detail
+    assert "CreditBlock=true" in detail
+
+
+def test_missing_pricing_order_step_shows_pricing_cause(client):
+    res = run_rpa("missing_pricing", client)
+    detail = _order_step(res)["detail"]
+    assert "PricingStatus=incomplete" in detail
+
+
+def test_happy_order_step_detail_is_just_the_number(client):
+    res = run_rpa("happy", client)
+    assert _order_step(res)["detail"] == "4500000000"

@@ -14,16 +14,30 @@ def run_rpa(scenario_key: str, client: SapClient) -> dict:
     sc = SCENARIOS[scenario_key]
     steps: list[dict] = []
 
-    def record(name: str, res: dict) -> bool:
+    def record(name: str, res: dict, detail: str | None = None) -> bool:
         ok = res.get("status") == "success"
-        steps.append({"step": name, "ok": ok,
-                      "detail": res.get("sap_code") if not ok else res.get("SalesOrder")
-                      or res.get("OutboundDelivery") or res.get("BillingDocument")})
+        if detail is None:
+            detail = res.get("sap_code") if not ok else (
+                res.get("SalesOrder") or res.get("OutboundDelivery") or res.get("BillingDocument"))
+        steps.append({"step": name, "ok": ok, "detail": detail})
         return ok
+
+    def order_detail(res: dict) -> str | None:
+        # Surface the data problems the order was created WITH, so a later
+        # delivery/billing failure is self-explanatory in the demo.
+        if res.get("status") != "success":
+            return None
+        detail = res.get("SalesOrder")
+        flags = []
+        if res.get("CreditBlock"):
+            flags.append("CreditBlock=true")
+        if res.get("PricingStatus") == "incomplete":
+            flags.append("PricingStatus=incomplete")
+        return f"{detail}, " + ", ".join(flags) if flags else detail
 
     order = client.create_sales_order(sc["sold_to"], "1010", "10", "00",
                                       [{"material": sc["material"], "quantity": sc["quantity"]}])
-    if not record("create_sales_order", order):
+    if not record("create_sales_order", order, order_detail(order)):
         return {"status": "ESCALATED", "failed_step": "create_sales_order",
                 "steps": steps, "invoice_total": None}
 
