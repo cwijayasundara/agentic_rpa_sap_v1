@@ -153,5 +153,63 @@ def create_app(store: Store | None = None) -> FastAPI:
     return app
 
 
-def _register_delivery_and_billing(app, store):  # replaced in Task 6
+def _register_delivery_and_billing(app, store):
+    from fastapi import Request
+    from fake_sap.store import Delivery, DeliveryItem
+
+    def _delivery_to_dict(d: Delivery) -> dict:
+        return {
+            "OutboundDelivery": d.delivery,
+            "SalesOrder": d.sales_order,
+            "GoodsIssueStatus": d.goods_issue_status,
+            "to_Item": [{"DeliveryDocumentItem": it.item, "Material": it.material,
+                         "ActualDeliveryQuantity": it.quantity} for it in d.items],
+        }
+
+    app.state._delivery_to_dict = _delivery_to_dict
+
+    @app.post(f"{DLV}/A_OutbDeliveryHeader", status_code=201)
+    async def create_delivery(request: Request):
+        _require_csrf(request)
+        payload = await request.json()
+        order = store.sales_orders.get(payload["SalesOrder"])
+        if order is None:
+            raise SapError("NOT_FOUND", "Sales order not found", 404)
+        if order.credit_block:
+            raise SapError("CREDIT_BLOCK", f"Order {order.sales_order} is blocked for credit", 400)
+        overrides = {i["SalesOrderItem"]: int(i["ActualDeliveryQuantity"])
+                     for i in payload.get("to_Item", [])}
+        items: list[DeliveryItem] = []
+        for it in order.items:
+            qty = overrides.get(it.item, it.quantity)
+            rules.check_atp(store, it.material, qty)
+            items.append(DeliveryItem(item=it.item, material=it.material, quantity=qty))
+        dlv = Delivery(delivery=store.next_delivery(), sales_order=order.sales_order,
+                       items=items, goods_issue_status="A")
+        store.deliveries[dlv.delivery] = dlv
+        return odata_single(_delivery_to_dict(dlv))
+
+    @app.get(DLV + "/A_OutbDeliveryHeader('{delivery}')")
+    async def get_delivery(delivery: str):
+        d = store.deliveries.get(delivery)
+        if d is None:
+            raise SapError("NOT_FOUND", f"Delivery {delivery} not found", 404)
+        return odata_single(_delivery_to_dict(d))
+
+    @app.post(f"{DLV}/PostGoodsIssue")
+    async def post_goods_issue(request: Request):
+        _require_csrf(request)
+        payload = await request.json()
+        d = store.deliveries.get(payload["OutboundDelivery"])
+        if d is None:
+            raise SapError("NOT_FOUND", "Delivery not found", 404)
+        for it in d.items:
+            store.materials[it.material].stock -= it.quantity
+        d.goods_issue_status = "C"
+        return odata_single(_delivery_to_dict(d))
+
+    _register_billing(app, store)  # Task 7
+
+
+def _register_billing(app, store):  # replaced in Task 7
     pass
