@@ -90,6 +90,11 @@ def create_app(store: Store | None = None) -> FastAPI:
             raise SapError("NOT_FOUND", f"Material {Material} not found", 404)
         return odata_single({"Material": Material, "AvailableQuantity": mat.stock})
 
+    @app.post(f"{SO}/Reset")
+    async def reset_store():
+        seed_store(store)
+        return {"d": {"status": "reset"}}
+
     # ---- sales order ----
     @app.post(f"{SO}/A_SalesOrder", status_code=201)
     async def create_sales_order(request: Request):
