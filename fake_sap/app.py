@@ -211,5 +211,53 @@ def _register_delivery_and_billing(app, store):
     _register_billing(app, store)  # Task 7
 
 
-def _register_billing(app, store):  # replaced in Task 7
-    pass
+def _register_billing(app, store):
+    from fastapi import Request
+    from fake_sap.store import BillingDocument
+
+    @app.post(f"{BILL}/A_BillingDocument", status_code=201)
+    async def create_billing(request: Request):
+        _require_csrf(request)
+        payload = await request.json()
+        dlv = store.deliveries.get(payload["OutboundDelivery"])
+        if dlv is None:
+            raise SapError("NOT_FOUND", "Delivery not found", 404)
+        if dlv.goods_issue_status != "C":
+            raise SapError("DOC_FLOW", "Goods issue must be posted before billing", 400)
+        order = store.sales_orders[dlv.sales_order]
+        net_by_item = {it.item: (it.net_amount / it.quantity if it.quantity else 0.0)
+                       for it in order.items}
+        total = round(sum(net_by_item.get(it.item, 0.0) * it.quantity for it in dlv.items), 2)
+        bill = BillingDocument(billing_document=store.next_billing(),
+                               delivery=dlv.delivery, total_net_amount=total)
+        store.billing_documents[bill.billing_document] = bill
+        return odata_single({"BillingDocument": bill.billing_document,
+                             "OutboundDelivery": bill.delivery,
+                             "TotalNetAmount": bill.total_net_amount})
+
+    @app.get(BILL + "/A_BillingDocument('{billing}')")
+    async def get_billing(billing: str):
+        b = store.billing_documents.get(billing)
+        if b is None:
+            raise SapError("NOT_FOUND", f"Billing document {billing} not found", 404)
+        return odata_single({"BillingDocument": b.billing_document,
+                             "OutboundDelivery": b.delivery,
+                             "TotalNetAmount": b.total_net_amount})
+
+    @app.get(SO + "/A_SalesOrder('{sales_order}')/to_DocumentFlow")
+    async def document_flow(sales_order: str):
+        order = store.sales_orders.get(sales_order)
+        if order is None:
+            raise SapError("NOT_FOUND", "Sales order not found", 404)
+        rows = [{"DocumentType": "SalesOrder", "DocumentNumber": order.sales_order,
+                 "Status": order.pricing_status}]
+        for d in store.deliveries.values():
+            if d.sales_order == sales_order:
+                rows.append({"DocumentType": "OutboundDelivery", "DocumentNumber": d.delivery,
+                             "Status": "GoodsIssued" if d.goods_issue_status == "C" else "Open"})
+                for b in store.billing_documents.values():
+                    if b.delivery == d.delivery:
+                        rows.append({"DocumentType": "BillingDocument",
+                                     "DocumentNumber": b.billing_document,
+                                     "Status": f"Net {b.total_net_amount}"})
+        return odata_collection(rows)
