@@ -14,6 +14,7 @@
 
 - All commands run from the repo root `/Users/chamindawijayasundara/Documents/rpa_research/sap_rpa_v1`.
 - Tests use `pytest`. Run a single test with `uv run pytest <path>::<name> -v` (or `python -m pytest ...` if not using uv).
+- **httpx test fixture caveat:** httpx 0.28's `ASGITransport` is async-only, so the in-process test fixtures in Tasks 8–10 and 15 must use `starlette.testclient.TestClient(create_app(), base_url="http://sap")` (a sync `httpx.Client` subclass) instead of `httpx.Client(transport=httpx.ASGITransport(app=...))`. `SapClient` accepts this injected client unchanged.
 - We follow the **reference repo's plain ADK package layout** (`agents/o2c_agent/{agent.py,prompts.py,__init__.py}`, runnable via `adk web` / `adk api_server`) rather than `agents-cli scaffold`, to keep this POC self-contained. This is a deliberate, approved deviation from the ADK scaffold prerequisite.
 - **Model:** `gemini-3.5-flash`, read from `GEMINI_MODEL`. If the API returns 404 for that ID, fall back to `gemini-flash-latest` (note in README).
 
