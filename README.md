@@ -47,7 +47,7 @@ Both the RPA bot and the ADK agents ultimately write to and read from the same F
 |---|---|---|
 | Happy path | Completes the full O2C chain | Completes the full O2C chain |
 | Customer on credit hold (customer 1000002) | Escalates at delivery; halts | Calls `release_credit_block`, then completes with a $500 invoice |
-| Material out of stock (MZ-FG-OOS, stock 3, qty 10) | Escalates at goods issue; halts | Creates a partial delivery of 3 units, notes backorder for remainder |
+| Material out of stock (MZ-FG-OOS, stock 3, qty 10) | Escalates at delivery; halts | Creates a partial delivery of 3 units, notes backorder for remainder |
 | Missing pricing (MZ-FG-NP) | "Completes" with a $0 invoice (silently wrong) | Applies a pricing condition (price 25), bills $250 correctly |
 
 ---
@@ -94,20 +94,51 @@ The agentic live-run scenarios and the eval are **not** part of `pytest` — the
 
 ## Running the Demo
 
-The demo starts Fake-SAP (port 8001) and the side-by-side web UI (port 8080) with a single command. Override ports with `SAP_PORT` / `WEB_PORT` env vars if either is in use:
+### Option A — one command (recommended)
+
+The demo script starts Fake-SAP (port 8001) and the side-by-side web UI (port 8080) together. Override ports with `SAP_PORT` / `WEB_PORT` env vars if either is in use:
 
 ```bash
 bash scripts/run_demo.sh
+# or, with custom ports:
+SAP_PORT=9001 WEB_PORT=9000 bash scripts/run_demo.sh
 ```
 
-Then open [http://127.0.0.1:8080](http://127.0.0.1:8080) in a browser. The left pane runs the RPA bot; the right pane runs the ADK agents. The agentic pane requires a valid `GEMINI_API_KEY` in `.env`.
+Then open [http://127.0.0.1:8080](http://127.0.0.1:8080) in a browser. The left pane runs the RPA bot; the right pane runs the ADK agents. The agentic pane requires a valid `GEMINI_API_KEY` in `.env`. Press `Ctrl+C` to stop (the script also shuts Fake-SAP down).
+
+### Option B — run the server and the UI separately
+
+Useful for debugging or running the two processes in different terminals.
+
+**Terminal 1 — the Fake-SAP server** (the shared system-of-record):
+
+```bash
+uv run uvicorn fake_sap.app:create_app --factory --port 8001
+```
+
+Sanity-check it from another shell:
+
+```bash
+curl -s "http://127.0.0.1:8001/sap/opu/odata/sap/API_SALES_ORDER_SRV/A_Material" | head
+```
+
+**Terminal 2 — the web UI / gateway:**
+
+```bash
+# FAKE_SAP_BASE_URL must point at the Fake-SAP server above
+FAKE_SAP_BASE_URL=http://127.0.0.1:8001 uv run uvicorn web.server:app --port 8080
+```
+
+Then open [http://127.0.0.1:8080](http://127.0.0.1:8080).
+
+> The MCP server (`python -m mcp_server.server`) does **not** need to be started by hand — the ADK agents launch it automatically over stdio when the agentic pane runs. To smoke-test it standalone: `FAKE_SAP_BASE_URL=http://127.0.0.1:8001 uv run python -m mcp_server.server` (it waits on stdio; `Ctrl+C` to exit).
 
 ### Running a single agent scenario in the terminal
 
-Fake-SAP must already be running on port 8001 (e.g., start it separately or use the demo script). A valid `GEMINI_API_KEY` is required.
+Fake-SAP must already be running on port 8001 (start it as in Option B, Terminal 1, or use the demo script). A valid `GEMINI_API_KEY` is required.
 
 ```bash
-# Available scenarios: happy_path, credit_hold, out_of_stock, missing_pricing
+# Available scenarios: happy, credit_hold, out_of_stock, missing_pricing
 uv run python -m agents.o2c_agent.run_scenario credit_hold
 ```
 
