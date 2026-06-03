@@ -12,4 +12,14 @@ def odata_collection(entities: list[dict]) -> dict:
 
 
 def odata_error_body(code: str, message: str) -> dict:
-    return {"error": {"code": code, "message": {"lang": "en", "value": message}}}
+    return {
+        "error": {
+            "code": code,
+            "message": {"lang": "en", "value": message},
+            "innererror": {
+                "errordetails": [
+                    {"code": code, "message": message, "severity": "error"}
+                ]
+            },
+        }
+    }

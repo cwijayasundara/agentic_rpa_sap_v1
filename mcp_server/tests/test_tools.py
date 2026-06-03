@@ -33,3 +33,23 @@ def test_stock_error_includes_hint_and_available():
     res = srv.create_outbound_delivery(o["SalesOrder"])
     assert res["available"] == 3
     assert "partial" in res["hint"].lower()
+
+
+def test_create_order_carries_authentic_sap_fields():
+    res = srv.create_sales_order("1000001", "1710", "10", "00",
+                                 [{"material": "MZ-FG-C100", "quantity": 10}],
+                                 purchase_order_by_customer="PO-4711")
+    assert res["status"] == "success"
+    assert res["SalesOrderType"] == "OR"
+    assert res["TransactionCurrency"] == "USD"
+    assert res["TotalCreditCheckStatus"] == "A"
+    assert res["PurchaseOrderByCustomer"] == "PO-4711"
+    # convenience alias still present
+    assert res["CreditBlock"] is False
+
+
+def test_credit_blocked_order_reports_real_status():
+    res = srv.create_sales_order("1000002", "1710", "10", "00",
+                                 [{"material": "MZ-FG-C100", "quantity": 10}])
+    assert res["TotalCreditCheckStatus"] == "B"
+    assert res["DeliveryBlockReason"] == "01"

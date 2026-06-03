@@ -13,7 +13,17 @@ def test_collection_wrapped_in_d_results():
 
 def test_error_body_shape():
     body = odata_error_body("CREDIT_BLOCK", "blocked")
-    assert body == {"error": {"code": "CREDIT_BLOCK", "message": {"lang": "en", "value": "blocked"}}}
+    assert body == {
+        "error": {
+            "code": "CREDIT_BLOCK",
+            "message": {"lang": "en", "value": "blocked"},
+            "innererror": {
+                "errordetails": [
+                    {"code": "CREDIT_BLOCK", "message": "blocked", "severity": "error"}
+                ]
+            },
+        }
+    }
 
 
 def test_csrf_token_is_fixed():

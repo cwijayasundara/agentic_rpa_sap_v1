@@ -39,6 +39,18 @@ This project proves that a multi-agent system built with Google ADK and `gemini-
 
 Both the RPA bot and the ADK agents ultimately write to and read from the same Fake-SAP instance, so the comparison is fair. Only the agents go through the MCP server — the RPA bot talks to Fake-SAP directly over OData HTTP. The MCP tool_filter enforces read/write isolation between the Creator and Reviewer sub-agents.
 
+### SAP fidelity
+
+The Fake-SAP service mirrors the real SAP S/4HANA OData APIs vendored in
+`sap_api/` (`API_SALES_ORDER_SRV`, `API_MATERIAL_DOCUMENT_SRV`). Entities expose
+authentic field names and SD status codes (`TotalCreditCheckStatus`,
+`DeliveryBlockReason`, `OverallDeliveryStatus`, `OverallOrdReltdBillgStatus`,
+`OverallSDProcessStatus`; `A`/`B`/`C` = not-processed/partial/complete), and each
+service serves an OData v2 `$metadata` document at e.g.
+`GET /sap/opu/odata/sap/API_SALES_ORDER_SRV/$metadata`. Monetary fields are kept
+numeric for demo readability; this is the one deliberate simplification vs. real
+SAP (which returns decimals as strings).
+
 ---
 
 ## Scenarios
