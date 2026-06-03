@@ -1,4 +1,4 @@
-from fake_sap.store import Store, SalesOrder, SalesOrderItem, Delivery, DeliveryItem, BillingDocument
+from fake_sap.store import Store, SalesOrder, SalesOrderItem, Delivery, DeliveryItem, BillingDocument, Material
 from fake_sap import entities, schema
 from starlette.testclient import TestClient
 from fake_sap.app import create_app
@@ -22,8 +22,7 @@ def _order(store, blocked=False, pricing="complete"):
 
 def test_order_dict_has_authentic_fields_and_aliases():
     store = Store()
-    store.materials["MZ-FG-C100"] = __import__("fake_sap.store", fromlist=["Material"]).Material(
-        "MZ-FG-C100", "Pump", 100, 50.0, True)
+    store.materials["MZ-FG-C100"] = Material("MZ-FG-C100", "Pump", 100, 50.0, True)
     o = _order(store)
     d = entities.sales_order_to_dict(o, store)
     # authentic SAP fields
@@ -48,8 +47,7 @@ def test_order_dict_has_authentic_fields_and_aliases():
 
 def test_credit_block_sets_real_status_fields():
     store = Store()
-    store.materials["MZ-FG-C100"] = __import__("fake_sap.store", fromlist=["Material"]).Material(
-        "MZ-FG-C100", "Pump", 100, 50.0, True)
+    store.materials["MZ-FG-C100"] = Material("MZ-FG-C100", "Pump", 100, 50.0, True)
     o = _order(store, blocked=True)
     d = entities.sales_order_to_dict(o, store)
     assert d["TotalCreditCheckStatus"] == "B"
@@ -59,11 +57,16 @@ def test_credit_block_sets_real_status_fields():
 
 def test_order_dict_keys_cover_registry_properties():
     store = Store()
-    store.materials["MZ-FG-C100"] = __import__("fake_sap.store", fromlist=["Material"]).Material(
-        "MZ-FG-C100", "Pump", 100, 50.0, True)
+    store.materials["MZ-FG-C100"] = Material("MZ-FG-C100", "Pump", 100, 50.0, True)
     d = entities.sales_order_to_dict(_order(store), store)
     for prop in schema.A_SALES_ORDER.properties:
         assert prop.name in d, f"missing authentic field {prop.name}"
+    item = d["to_Item"][0]
+    for prop in schema.A_SALES_ORDER_ITEM.properties:
+        assert prop.name in item, f"missing authentic item field {prop.name}"
+    sl = item["to_ScheduleLine"][0]
+    for prop in schema.A_SALES_ORDER_SCHEDULE_LINE.properties:
+        assert prop.name in sl, f"missing authentic schedule-line field {prop.name}"
 
 
 def test_delivery_and_billing_dicts():

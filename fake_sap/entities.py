@@ -30,6 +30,7 @@ def _delivery_status(order: SalesOrder, store: Store) -> str:
 def _billing_status(order: SalesOrder, store: Store) -> str:
     dlv_ids = {d.delivery for d in store.deliveries.values()
                if d.sales_order == order.sales_order}
+    # Simplified: any billed delivery marks the whole order as billed (demo has single-delivery flow).
     invoiced = any(b.delivery in dlv_ids for b in store.billing_documents.values())
     return "C" if invoiced else "A"
 
@@ -55,7 +56,7 @@ def _schedule_line_dict(order: SalesOrder, item: SalesOrderItem, store: Store) -
         "SalesOrderItem": item.item,
         "ScheduleLine": "0001",
         "RequestedDeliveryDate": _odata_date(_REQ_DELIV_MS),
-        "ConfirmedDeliveryDate": _odata_date(_REQ_DELIV_MS) if fully_confirmed else "",
+        "ConfirmedDeliveryDate": _odata_date(_REQ_DELIV_MS) if fully_confirmed else None,
         "ScheduleLineOrderQuantity": item.quantity,
         "ConfdOrderQtyByMatlAvailCheck": confirmed_qty,
         "OrderQuantityUnit": "EA",

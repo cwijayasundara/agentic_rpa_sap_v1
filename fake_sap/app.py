@@ -158,7 +158,6 @@ def create_app(store: Store | None = None) -> FastAPI:
 
 def _register_delivery_and_billing(app, store):
     from fastapi import Request
-    from fake_sap.store import Delivery, DeliveryItem
 
     @app.post(f"{DLV}/A_OutbDeliveryHeader", status_code=201)
     async def create_delivery(request: Request):
@@ -205,7 +204,6 @@ def _register_delivery_and_billing(app, store):
 
 def _register_billing(app, store):
     from fastapi import Request
-    from fake_sap.store import BillingDocument
 
     @app.post(f"{BILL}/A_BillingDocument", status_code=201)
     async def create_billing(request: Request):
