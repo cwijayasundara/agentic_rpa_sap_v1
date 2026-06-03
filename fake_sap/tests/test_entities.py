@@ -1,5 +1,11 @@
 from fake_sap.store import Store, SalesOrder, SalesOrderItem, Delivery, DeliveryItem, BillingDocument
 from fake_sap import entities, schema
+from starlette.testclient import TestClient
+from fake_sap.app import create_app
+
+SO = "/sap/opu/odata/sap/API_SALES_ORDER_SRV"
+DLV = "/sap/opu/odata/sap/API_OUTBOUND_DELIVERY_SRV"
+BILL = "/sap/opu/odata/sap/API_BILLING_DOCUMENT_SRV"
 
 
 def _order(store, blocked=False, pricing="complete"):
@@ -73,3 +79,32 @@ def test_delivery_and_billing_dicts():
     bd = entities.billing_to_dict(bill)
     assert bd["TransactionCurrency"] == "USD"
     assert bd["TotalNetAmount"] == 500.0
+
+
+def _csrf(client):
+    return client.get(f"{SO}/", headers={"X-CSRF-Token": "Fetch"}).headers["X-CSRF-Token"]
+
+
+def test_status_codes_progress_through_lifecycle():
+    client = TestClient(create_app())
+    t = _csrf(client)
+    H = {"X-CSRF-Token": t}
+    so = client.post(f"{SO}/A_SalesOrder", headers=H, json={
+        "SoldToParty": "1000001", "SalesOrganization": "1710",
+        "DistributionChannel": "10", "OrganizationDivision": "00",
+        "to_Item": [{"Material": "MZ-FG-C100", "RequestedQuantity": 10}]}).json()["d"]
+    assert so["OverallDeliveryStatus"] == "A"
+    assert so["OverallOrdReltdBillgStatus"] == "A"
+    sales_order = so["SalesOrder"]
+
+    dlv = client.post(f"{DLV}/A_OutbDeliveryHeader", headers=H,
+                      json={"SalesOrder": sales_order}).json()["d"]["OutboundDelivery"]
+    after_dlv = client.get(SO + f"/A_SalesOrder('{sales_order}')").json()["d"]
+    assert after_dlv["OverallDeliveryStatus"] == "B"  # delivery exists, GI not posted
+
+    client.post(f"{DLV}/PostGoodsIssue", headers=H, json={"OutboundDelivery": dlv})
+    client.post(f"{BILL}/A_BillingDocument", headers=H, json={"OutboundDelivery": dlv})
+    final = client.get(SO + f"/A_SalesOrder('{sales_order}')").json()["d"]
+    assert final["OverallDeliveryStatus"] == "C"
+    assert final["OverallOrdReltdBillgStatus"] == "C"
+    assert final["OverallSDProcessStatus"] == "C"
