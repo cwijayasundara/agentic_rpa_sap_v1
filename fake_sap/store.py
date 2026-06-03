@@ -37,6 +37,7 @@ class SalesOrder:
     items: list[SalesOrderItem]
     credit_block: bool
     pricing_status: str  # "complete" | "incomplete"
+    purchase_order_by_customer: str = ""
 
     @property
     def total_net_amount(self) -> float:

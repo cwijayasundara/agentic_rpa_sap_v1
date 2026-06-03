@@ -6,7 +6,7 @@ from fake_sap.store import (
     Store, SalesOrder, SalesOrderItem, Delivery, DeliveryItem, BillingDocument,
 )
 from fake_sap.seed import seed_store
-from fake_sap import rules, schema
+from fake_sap import rules, schema, entities
 from fake_sap.metadata import render_metadata
 from fake_sap.rules import SapError
 from fake_sap.odata import odata_single, odata_collection, odata_error_body, CSRF_TOKEN
@@ -26,25 +26,6 @@ def _err(e: SapError) -> JSONResponse:
 def _require_csrf(request: Request) -> None:
     if request.headers.get("X-CSRF-Token") != CSRF_TOKEN:
         raise SapError("CSRF_FAILED", "CSRF token validation failed", 403)
-
-
-def _order_to_dict(o: SalesOrder) -> dict:
-    return {
-        "SalesOrder": o.sales_order,
-        "SoldToParty": o.sold_to,
-        "SalesOrganization": o.sales_org,
-        "DistributionChannel": o.dist_channel,
-        "OrganizationDivision": o.division,
-        "TotalNetAmount": o.total_net_amount,
-        "CreditBlock": o.credit_block,
-        "PricingStatus": o.pricing_status,
-        "to_Item": [
-            {"SalesOrderItem": it.item, "Material": it.material,
-             "RequestedQuantity": it.quantity, "NetAmount": it.net_amount,
-             "PricingIncomplete": it.pricing_incomplete}
-            for it in o.items
-        ],
-    }
 
 
 def create_app(store: Store | None = None) -> FastAPI:
@@ -135,14 +116,14 @@ def create_app(store: Store | None = None) -> FastAPI:
             credit_block=rules.is_credit_blocked(store, sold_to),
             pricing_status=pricing_status)
         store.sales_orders[order.sales_order] = order
-        return odata_single(_order_to_dict(order))
+        return odata_single(entities.sales_order_to_dict(order, store))
 
     @app.get(SO + "/A_SalesOrder('{sales_order}')")
     async def get_sales_order(sales_order: str):
         order = store.sales_orders.get(sales_order)
         if order is None:
             raise SapError("NOT_FOUND", f"Sales order {sales_order} not found", 404)
-        return odata_single(_order_to_dict(order))
+        return odata_single(entities.sales_order_to_dict(order, store))
 
     @app.post(f"{SO}/ReleaseCreditBlock")
     async def release_credit_block(request: Request):
@@ -152,7 +133,7 @@ def create_app(store: Store | None = None) -> FastAPI:
         if order is None:
             raise SapError("NOT_FOUND", "Sales order not found", 404)
         order.credit_block = False
-        return odata_single(_order_to_dict(order))
+        return odata_single(entities.sales_order_to_dict(order, store))
 
     @app.post(f"{SO}/ApplyPricingCondition")
     async def apply_pricing_condition(request: Request):
@@ -168,7 +149,7 @@ def create_app(store: Store | None = None) -> FastAPI:
                 it.net_amount = round(amount * it.quantity, 2)
                 it.pricing_incomplete = False
         order.pricing_status = "complete" if all(not i.pricing_incomplete for i in order.items) else "incomplete"
-        return odata_single(_order_to_dict(order))
+        return odata_single(entities.sales_order_to_dict(order, store))
 
     _register_delivery_and_billing(app, store)  # implemented in Task 6 & 7
     return app
@@ -177,17 +158,6 @@ def create_app(store: Store | None = None) -> FastAPI:
 def _register_delivery_and_billing(app, store):
     from fastapi import Request
     from fake_sap.store import Delivery, DeliveryItem
-
-    def _delivery_to_dict(d: Delivery) -> dict:
-        return {
-            "OutboundDelivery": d.delivery,
-            "SalesOrder": d.sales_order,
-            "GoodsIssueStatus": d.goods_issue_status,
-            "to_Item": [{"DeliveryDocumentItem": it.item, "Material": it.material,
-                         "ActualDeliveryQuantity": it.quantity} for it in d.items],
-        }
-
-    app.state._delivery_to_dict = _delivery_to_dict
 
     @app.post(f"{DLV}/A_OutbDeliveryHeader", status_code=201)
     async def create_delivery(request: Request):
@@ -208,14 +178,14 @@ def _register_delivery_and_billing(app, store):
         dlv = Delivery(delivery=store.next_delivery(), sales_order=order.sales_order,
                        items=items, goods_issue_status="A")
         store.deliveries[dlv.delivery] = dlv
-        return odata_single(_delivery_to_dict(dlv))
+        return odata_single(entities.delivery_to_dict(dlv))
 
     @app.get(DLV + "/A_OutbDeliveryHeader('{delivery}')")
     async def get_delivery(delivery: str):
         d = store.deliveries.get(delivery)
         if d is None:
             raise SapError("NOT_FOUND", f"Delivery {delivery} not found", 404)
-        return odata_single(_delivery_to_dict(d))
+        return odata_single(entities.delivery_to_dict(d))
 
     @app.post(f"{DLV}/PostGoodsIssue")
     async def post_goods_issue(request: Request):
@@ -227,7 +197,7 @@ def _register_delivery_and_billing(app, store):
         for it in d.items:
             store.materials[it.material].stock -= it.quantity
         d.goods_issue_status = "C"
-        return odata_single(_delivery_to_dict(d))
+        return odata_single(entities.delivery_to_dict(d))
 
     _register_billing(app, store)  # Task 7
 
@@ -252,18 +222,14 @@ def _register_billing(app, store):
         bill = BillingDocument(billing_document=store.next_billing(),
                                delivery=dlv.delivery, total_net_amount=total)
         store.billing_documents[bill.billing_document] = bill
-        return odata_single({"BillingDocument": bill.billing_document,
-                             "OutboundDelivery": bill.delivery,
-                             "TotalNetAmount": bill.total_net_amount})
+        return odata_single(entities.billing_to_dict(bill))
 
     @app.get(BILL + "/A_BillingDocument('{billing}')")
     async def get_billing(billing: str):
         b = store.billing_documents.get(billing)
         if b is None:
             raise SapError("NOT_FOUND", f"Billing document {billing} not found", 404)
-        return odata_single({"BillingDocument": b.billing_document,
-                             "OutboundDelivery": b.delivery,
-                             "TotalNetAmount": b.total_net_amount})
+        return odata_single(entities.billing_to_dict(b))
 
     @app.get(SO + "/A_SalesOrder('{sales_order}')/to_DocumentFlow")
     async def document_flow(sales_order: str):
