@@ -52,9 +52,11 @@ class SapClient:
     def check_availability(self, material: str) -> dict:
         return self._get(f"{SO}/CheckAvailability", {"Material": material})
 
-    def create_sales_order(self, sold_to, sales_org, dist_channel, division, items) -> dict:
+    def create_sales_order(self, sold_to, sales_org, dist_channel, division, items,
+                           purchase_order_by_customer: str = "") -> dict:
         body = {"SoldToParty": sold_to, "SalesOrganization": sales_org,
                 "DistributionChannel": dist_channel, "OrganizationDivision": division,
+                "PurchaseOrderByCustomer": purchase_order_by_customer,
                 "to_Item": [{"Material": i["material"], "RequestedQuantity": i["quantity"]}
                             for i in items]}
         return self._post(f"{SO}/A_SalesOrder", body)

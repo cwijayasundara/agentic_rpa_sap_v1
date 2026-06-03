@@ -114,7 +114,8 @@ def create_app(store: Store | None = None) -> FastAPI:
             sales_org=payload["SalesOrganization"], dist_channel=payload["DistributionChannel"],
             division=payload["OrganizationDivision"], items=items,
             credit_block=rules.is_credit_blocked(store, sold_to),
-            pricing_status=pricing_status)
+            pricing_status=pricing_status,
+            purchase_order_by_customer=payload.get("PurchaseOrderByCustomer", ""))
         store.sales_orders[order.sales_order] = order
         return odata_single(entities.sales_order_to_dict(order, store))
 

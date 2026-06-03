@@ -51,9 +51,19 @@ def check_availability(material: str) -> dict:
 
 
 @mcp.tool()
-def create_sales_order(sold_to: str, sales_org: str, dist_channel: str, division: str, items: list[dict]) -> dict:
-    """Create a sales order. items = [{"material": str, "quantity": int}]. Returns header incl. CreditBlock and PricingStatus."""
-    return _with_hint(get_client().create_sales_order(sold_to, sales_org, dist_channel, division, items))
+def create_sales_order(sold_to: str, sales_org: str, dist_channel: str, division: str,
+                       items: list[dict], purchase_order_by_customer: str = "") -> dict:
+    """Create a sales order (OData A_SalesOrder).
+
+    items = [{"material": str, "quantity": int}].
+    purchase_order_by_customer is the customer's PO reference (optional).
+    Returns the header with authentic SAP fields incl. SalesOrderType,
+    TransactionCurrency, TotalCreditCheckStatus ("A" ok / "B" blocked),
+    DeliveryBlockReason, OverallSDProcessStatus, plus convenience CreditBlock and
+    PricingStatus.
+    """
+    return _with_hint(get_client().create_sales_order(
+        sold_to, sales_org, dist_channel, division, items, purchase_order_by_customer))
 
 
 @mcp.tool()
