@@ -1,12 +1,13 @@
 from __future__ import annotations
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from fake_sap.store import (
     Store, SalesOrder, SalesOrderItem, Delivery, DeliveryItem, BillingDocument,
 )
 from fake_sap.seed import seed_store
-from fake_sap import rules
+from fake_sap import rules, schema
+from fake_sap.metadata import render_metadata
 from fake_sap.rules import SapError
 from fake_sap.odata import odata_single, odata_collection, odata_error_body, CSRF_TOKEN
 
@@ -66,6 +67,21 @@ def create_app(store: Store | None = None) -> FastAPI:
         if request.headers.get("X-CSRF-Token", "").lower() == "fetch":
             headers["X-CSRF-Token"] = CSRF_TOKEN
         return JSONResponse({"d": {"EntitySets": []}}, headers=headers)
+
+    @app.get(f"{SO}/$metadata")
+    async def so_metadata():
+        return Response(render_metadata(schema.SALES_ORDER_SERVICE),
+                        media_type="application/xml")
+
+    @app.get(f"{DLV}/$metadata")
+    async def dlv_metadata():
+        return Response(render_metadata(schema.DELIVERY_SERVICE),
+                        media_type="application/xml")
+
+    @app.get(f"{BILL}/$metadata")
+    async def bill_metadata():
+        return Response(render_metadata(schema.BILLING_SERVICE),
+                        media_type="application/xml")
 
     # ---- master data ----
     @app.get(f"{SO}/A_Customer")
